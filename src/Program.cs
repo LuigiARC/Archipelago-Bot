@@ -14,7 +14,7 @@ class Program
     static async Task Main(string[] args)
     {
         Env.Load();
-if (args.Length == 0)
+        if (args.Length == 0)
         {
 #if ARCHIPELAGOMODE
             args = ["--archipelagoMode"];
@@ -28,17 +28,9 @@ if (args.Length == 0)
             args = ["--updatebdd"];
 #elif BIGASYNC
             args = ["--bigasync"];
-#elif GUI
-            args = ["--gui"];
 #endif
-        }
-
-        if (args.Length > 0 && args[0].Equals("--gui", StringComparison.OrdinalIgnoreCase))
-        {
-            DesktopGuiRunner.Run(args);
-            return;
-        }
-
+    }
+        
         string currentVersion = File.Exists(Declare.VersionFile) ? await File.ReadAllTextAsync(Declare.VersionFile) : "";
         var isWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
         var isLinux = RuntimeInformation.IsOSPlatform(OSPlatform.Linux);
@@ -95,7 +87,6 @@ if (args.Length == 0)
             Console.WriteLine($"  --NormalMode        {Resource.ProgramNormalMode}");
             Console.WriteLine($"  --UpdateBDD         {Resource.ProgramUpdateBDD}");
             Console.WriteLine($"  --BigAsync          {Resource.ProgramBigAsyncMode}");
-            Console.WriteLine("  --gui               Launch the modern admin GUI");
             Console.WriteLine();
             Console.WriteLine(Resource.ProgramHelp);
         }
@@ -238,7 +229,7 @@ if (args.Length == 0)
         static async Task ShutdownAsync()
         {
             Declare.Cts?.Cancel();
-            await WebPortalServer.StopAsync();
+            HostingClass.StopHost();
 
             if (Declare.Client != null)
             {
@@ -250,18 +241,11 @@ if (args.Length == 0)
 
         static Task OnConnected()
         {
-            _ = Task.Run(async () =>
-            {
-                await Task.Delay(10000);
-                if (Declare.Cts == null || Declare.Cts.IsCancellationRequested)
-                    TrackingDataManager.StartTracking();
-            });
             return Task.CompletedTask;
         }
-    }
 
-    private static async Task OnGuildJoined(SocketGuild guild)
-    {
+        static async Task OnGuildJoined(SocketGuild guild)
+        {
         if (Declare.IsBigAsync && !string.IsNullOrWhiteSpace(Declare.AllowDiscordGuildId))
         {
             if (!ulong.TryParse(Declare.AllowDiscordGuildId, out var allowedGuildId) || guild.Id != allowedGuildId)
@@ -287,11 +271,6 @@ if (args.Length == 0)
         {
             await BotCommands.RegisterCommandsAsync();
             Console.WriteLine(Resource.ProgramBotIsConnected);
-
-            TrackingDataManager.StartTracking();
-            WebPortalServer.Start();
-            await WebPortalPages.EnsureSharedCommandsPagesAsync();
-            await WebPortalPages.EnsureMissingUserPagesAsync();
 
             if (Declare.ExportMetrics && !string.IsNullOrEmpty(Declare.MetricsPort))
             {
@@ -322,70 +301,79 @@ if (args.Length == 0)
         return Task.CompletedTask;
     }
 
-    private static async Task CheckBdd()
-    {
-        Console.WriteLine(Resource.CheckingBDDVersion);
-        string bddVersion = await DBMigration.GetCurrentDbVersionAsync();
+        static async Task CheckBdd()
+        {
+            Console.WriteLine(Resource.CheckingBDDVersion);
+            string bddVersion = await DBMigration.GetCurrentDbVersionAsync();
 
-        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
 
-        if (bddVersion == "-1")
-        {
-            Console.WriteLine(Resource.NoBddVersionTable);
-            await DBMigration.Migrate_4_to_5Async(cts.Token);
-            await DBMigration_5.Migrate_5_0_1(cts.Token);
-            await DBMigration_5.Migrate_5_0_2(cts.Token);
-            await DBMigration_5.Migrate_5_0_3(cts.Token);
-            await DBMigration_5.Migrate_5_0_4(cts.Token);
-            await DBMigration_5.Migrate_5_0_5(cts.Token);
-            await DBMigration.SetDbVersionAsync(Declare.BddVersion);
-            await DBMigration.DropLegacyTablesAsync();
-        }
-        else if (bddVersion == Declare.BddVersion)
-        {
-            Console.WriteLine(Resource.BDDUpToDate);
-        }
-        else if (bddVersion == "5.0.0")
-        {
-            Console.WriteLine(string.Format(Resource.BDDForceUpdate, bddVersion, Declare.BddVersion));
-            await DBMigration_5.Migrate_5_0_1(cts.Token);
-            await DBMigration.SetDbVersionAsync(Declare.BddVersion);
-        }
-        else if (bddVersion == "5.0.1")
-        {
-            Console.WriteLine(string.Format(Resource.BDDForceUpdate, bddVersion, Declare.BddVersion));
-            await DBMigration_5.Migrate_5_0_2(cts.Token);
-            await DBMigration.SetDbVersionAsync(Declare.BddVersion);
-        }
-        else if (bddVersion == "5.0.2")
-        {
-            Console.WriteLine(string.Format(Resource.BDDForceUpdate, bddVersion, Declare.BddVersion));
-            await DBMigration_5.Migrate_5_0_3(cts.Token);
-            await DBMigration.SetDbVersionAsync(Declare.BddVersion);
-        }
-        else if (bddVersion == "5.0.3")
-        {
-            Console.WriteLine(string.Format(Resource.BDDForceUpdate, bddVersion, Declare.BddVersion));
-            await DBMigration_5.Migrate_5_0_4(cts.Token);
-            await DBMigration.SetDbVersionAsync(Declare.BddVersion);
-        }
-        else if (bddVersion == "5.0.4")
-        {
-            Console.WriteLine(string.Format(Resource.BDDForceUpdate, bddVersion, Declare.BddVersion));
-            await DBMigration_5.Migrate_5_0_5(cts.Token);
-            await DBMigration.SetDbVersionAsync(Declare.BddVersion);
-        }
-        else
-        {
-            Console.WriteLine(string.Format(Resource.BDDForceUpdate, bddVersion, Declare.BddVersion));
-            await DBMigration.Migrate_4_to_5Async(cts.Token);
-            await DBMigration_5.Migrate_5_0_1(cts.Token);
-            await DBMigration_5.Migrate_5_0_2(cts.Token);
-            await DBMigration_5.Migrate_5_0_3(cts.Token);
-            await DBMigration_5.Migrate_5_0_4(cts.Token);
-            await DBMigration_5.Migrate_5_0_5(cts.Token);
-            await DBMigration.SetDbVersionAsync(Declare.BddVersion);
-            await DBMigration.DropLegacyTablesAsync();
+            if (bddVersion == "-1")
+            {
+                Console.WriteLine(Resource.NoBddVersionTable);
+                await DBMigration.Migrate_4_to_5Async(cts.Token);
+                await DBMigration_5.Migrate_5_0_1(cts.Token);
+                await DBMigration_5.Migrate_5_0_2(cts.Token);
+                await DBMigration_5.Migrate_5_0_3(cts.Token);
+                await DBMigration_5.Migrate_5_0_4(cts.Token);
+                await DBMigration_5.Migrate_5_0_5(cts.Token);
+                await DBMigration_5.Migrate_5_0_6(cts.Token);
+                await DBMigration.SetDbVersionAsync(Declare.BddVersion);
+                await DBMigration.DropLegacyTablesAsync();
+            }
+            else if (bddVersion == Declare.BddVersion)
+            {
+                Console.WriteLine(Resource.BDDUpToDate);
+            }
+            else if (bddVersion == "5.0.0")
+            {
+                Console.WriteLine(string.Format(Resource.BDDForceUpdate, bddVersion, Declare.BddVersion));
+                await DBMigration_5.Migrate_5_0_1(cts.Token);
+                await DBMigration.SetDbVersionAsync(Declare.BddVersion);
+            }
+            else if (bddVersion == "5.0.1")
+            {
+                Console.WriteLine(string.Format(Resource.BDDForceUpdate, bddVersion, Declare.BddVersion));
+                await DBMigration_5.Migrate_5_0_2(cts.Token);
+                await DBMigration.SetDbVersionAsync(Declare.BddVersion);
+            }
+            else if (bddVersion == "5.0.2")
+            {
+                Console.WriteLine(string.Format(Resource.BDDForceUpdate, bddVersion, Declare.BddVersion));
+                await DBMigration_5.Migrate_5_0_3(cts.Token);
+                await DBMigration.SetDbVersionAsync(Declare.BddVersion);
+            }
+            else if (bddVersion == "5.0.3")
+            {
+                Console.WriteLine(string.Format(Resource.BDDForceUpdate, bddVersion, Declare.BddVersion));
+                await DBMigration_5.Migrate_5_0_4(cts.Token);
+                await DBMigration.SetDbVersionAsync(Declare.BddVersion);
+            }
+            else if (bddVersion == "5.0.4")
+            {
+                Console.WriteLine(string.Format(Resource.BDDForceUpdate, bddVersion, Declare.BddVersion));
+                await DBMigration_5.Migrate_5_0_5(cts.Token);
+                await DBMigration.SetDbVersionAsync(Declare.BddVersion);
+            }
+            else if (bddVersion == "5.0.5")
+            {
+                Console.WriteLine(string.Format(Resource.BDDForceUpdate, bddVersion, Declare.BddVersion));
+                await DBMigration_5.Migrate_5_0_6(cts.Token);
+                await DBMigration.SetDbVersionAsync(Declare.BddVersion);
+            }
+            else
+            {
+                Console.WriteLine(string.Format(Resource.BDDForceUpdate, bddVersion, Declare.BddVersion));
+                await DBMigration.Migrate_4_to_5Async(cts.Token);
+                await DBMigration_5.Migrate_5_0_1(cts.Token);
+                await DBMigration_5.Migrate_5_0_2(cts.Token);
+                await DBMigration_5.Migrate_5_0_3(cts.Token);
+                await DBMigration_5.Migrate_5_0_4(cts.Token);
+                await DBMigration_5.Migrate_5_0_5(cts.Token);
+                await DBMigration.SetDbVersionAsync(Declare.BddVersion);
+                await DBMigration.DropLegacyTablesAsync();
+            }
         }
     }
 }
+

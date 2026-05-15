@@ -245,6 +245,33 @@ CREATE TABLE IF NOT EXISTS ExcludedItemTable (
 );
 
 -- ==========================
+-- 🎯 YamlUserMappingTable
+-- ==========================
+CREATE TABLE IF NOT EXISTS YamlUserMappingTable (
+  Id INTEGER PRIMARY KEY AUTOINCREMENT,
+  GuildId   TEXT NOT NULL,
+  ChannelId TEXT NOT NULL,
+  YamlFile  TEXT NOT NULL,
+  Alias     TEXT NOT NULL,
+  UserId    TEXT NOT NULL,
+  UNIQUE (GuildId, ChannelId, YamlFile)
+);
+
+-- ==========================
+-- 🎯 WorldThreadsTable
+-- ==========================
+CREATE TABLE IF NOT EXISTS WorldThreadsTable (
+  Id INTEGER PRIMARY KEY AUTOINCREMENT,
+  GuildId         TEXT NOT NULL,
+  ChannelId       TEXT NOT NULL,
+  ParentChannelId TEXT,
+  WorldName       TEXT,
+  CreatedAtUtc    TEXT NOT NULL,
+  LastStartedAtUtc TEXT,
+  UNIQUE (GuildId, ChannelId)
+);
+
+-- ==========================
 -- Index & contraintes
 -- ==========================
 
@@ -290,6 +317,12 @@ CREATE INDEX IF NOT EXISTS idx_receiveraliases_gcur
   ON ReceiverAliasesTable(GuildId, ChannelId, UserId, Receiver);
 CREATE INDEX IF NOT EXISTS idx_receiveraliases_gcr
   ON ReceiverAliasesTable(GuildId, ChannelId, Receiver);
+
+CREATE INDEX IF NOT EXISTS idx_yamlusermap_gcy
+  ON YamlUserMappingTable(GuildId, ChannelId, YamlFile);
+
+CREATE INDEX IF NOT EXISTS idx_worldthreads_gc
+  ON WorldThreadsTable(GuildId, ChannelId);
 
 -- HintStatusTable: mêmes patterns que DisplayedItemTable
 CREATE INDEX IF NOT EXISTS idx_hintstatus_gcr_item

@@ -85,7 +85,6 @@ public static class TrackingDataManager
                                         {
                                             Console.WriteLine(string.Format(Resource.TDMServerNotFound, guild));
                                             await DatabaseCommands.DeleteChannelDataByGuildIdAsync(guild);
-                                            WebPortalPages.DeleteGuildPages(guild);
                                             RateLimitGuards.RemoveGuildSendGate(guildId);
                                             Console.WriteLine(Resource.TDMDeletionCompleted);
                                         }
@@ -145,7 +144,6 @@ public static class TrackingDataManager
                                                 {
                                                     Console.WriteLine(string.Format(Resource.TDMChannelNoLongerExists, channel));
                                                     await DatabaseCommands.DeleteChannelDataAsync(guild, channel);
-                                                    WebPortalPages.DeleteChannelPages(guild, channel);
                                                     Console.WriteLine(Resource.TDMDeletionCompleted);
                                                     ChannelConfigCache.Remove(guild, channel);
 
@@ -159,7 +157,6 @@ public static class TrackingDataManager
                                                     {
                                                         Console.WriteLine($"[TDM] Le canal {channelId} est introuvable côté gateway depuis {count} minutes, suppression des données.");
                                                         await DatabaseCommands.DeleteChannelDataAsync(guild, channel);
-                                                        WebPortalPages.DeleteChannelPages(guild, channel);
                                                         Console.WriteLine(Resource.TDMDeletionCompleted);
                                                         ChannelConfigCache.Remove(guild, channel);
 
@@ -249,7 +246,6 @@ public static class TrackingDataManager
                                                         RateLimitGuards.GetGuildSendGate(guildCheck.Id).Release();
                                                     }
                                                     await DatabaseCommands.DeleteChannelDataAsync(guild, channel);
-                                                    WebPortalPages.DeleteChannelPages(guild, channel);
                                                     Declare.WarnedThreads.Remove(channel);
                                                     ChannelConfigCache.Remove(guild, channel);
                                                     return;
@@ -439,7 +435,6 @@ public static class TrackingDataManager
                 }
 
                 await DatabaseCommands.DeleteChannelDataAsync(guild, channel);
-                WebPortalPages.DeleteChannelPages(guild, channel);
                 ChannelConfigCache.Remove(guild, channel);
             }
         }

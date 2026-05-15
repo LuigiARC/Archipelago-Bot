@@ -2,6 +2,7 @@
 using Discord;
 using Discord.WebSocket;
 using System.IO.Compression;
+using System.Text.RegularExpressions;
 using System.Text;
 
 public class YamlClass : Declare
@@ -30,9 +31,10 @@ public class YamlClass : Declare
         return message;
     }
 
-    public static async Task<string> SendYaml(SocketSlashCommand command, string channelId)
+    public static async Task<string> SendYaml(SocketSlashCommand command, string channelId, string guildId)
     {
-        var attachment = command.Data.Options.FirstOrDefault()?.Value as IAttachment;
+        var attachment = command.Data.Options.FirstOrDefault(o => o.Name == "file")?.Value as IAttachment;
+        var mappedUser = command.Data.Options.FirstOrDefault(o => o.Name == "user")?.Value as IUser;
         var message = string.Empty;
         if (attachment == null || !attachment.Filename.EndsWith(".yaml"))
         {
@@ -60,6 +62,25 @@ public class YamlClass : Declare
                 {
                     await response.Content.CopyToAsync(fs);
                 }
+
+                if (mappedUser != null)
+                {
+                    var alias = await ExtractAliasFromYamlAsync(filePath, attachment.Filename);
+                    if (!string.IsNullOrWhiteSpace(alias))
+                    {
+                        await YamlUserMappingsCommands.AddOrUpdateMappingAsync(
+                            guildId,
+                            channelId,
+                            attachment.Filename,
+                            alias,
+                            mappedUser.Id.ToString());
+
+                        message = string.Format(Resource.YamlFileSent, attachment.Filename)
+                                  + $"\nMapped {attachment.Filename} ({alias}) to <@{mappedUser.Id}>.";
+                        return message;
+                    }
+                }
+
                 message = string.Format(Resource.YamlFileSent, attachment.Filename);
             }
             else
@@ -95,97 +116,22 @@ public class YamlClass : Declare
         return string.Format(Resource.YamlFileSent, Path.GetFileName(fileName));
     }
 
-    public static string CleanYamls(string channelId)
+    public static string CleanYamls(string channelId, string guildId)
     {
-        string message;
-        var playersFolderChannel = Path.Combine(BasePath, "extern", "Archipelago", "Players", channelId);
-        if (Directory.Exists(playersFolderChannel))
-        {
-            try
-            {
-                Directory.Delete(playersFolderChannel, true);
-                message = Resource.YamlDeleteAllFiles;
-            }
-            catch (IOException ex)
-            {
-                message = string.Format(Resource.YamlDeleteAllFilesError, ex.Message);
-            }
-        }
-        else
-        {
-            message = Resource.YamlNotFound;
-        }
-
-        return message;
+        _ = (channelId, guildId);
+        return "YAML cleanup is disabled: player YAML files are persistent and are never deleted.";
     }
 
-    public static string DeleteYaml(SocketSlashCommand command, string channelId)
+    public static string DeleteYaml(SocketSlashCommand command, string channelId, string guildId)
     {
-        var fileSelected = command.Data.Options.FirstOrDefault()?.Value as string;
-        var playersFolderChannel = Path.Combine(BasePath, "extern", "Archipelago", "Players", channelId, "yaml");
-        var message = string.Empty;
-
-        if (!string.IsNullOrEmpty(fileSelected))
-        {
-            var deletedfilePath = Path.Combine(playersFolderChannel, fileSelected);
-
-            if (File.Exists(deletedfilePath))
-            {
-                try
-                {
-                    File.Delete(deletedfilePath);
-                    message += string.Format(Resource.YamlFileDeleted, fileSelected);
-                }
-                catch (Exception ex)
-                {
-                    message += string.Format(Resource.YamlFileDeletedError, fileSelected, ex.Message);
-                }
-            }
-            else
-            {
-                message += string.Format(Resource.YamlDeleteFileNotExists, fileSelected);
-            }
-        }
-        else
-        {
-            message += Resource.NoFileSelected;
-        }
-
-        return message;
+        _ = (command, channelId, guildId);
+        return "YAML deletion is disabled: player YAML files are persistent and are never deleted.";
     }
 
-    public static string DeleteYamlByName(string channelId, string? fileSelected)
+    public static string DeleteYamlByName(string channelId, string guildId, string? fileSelected)
     {
-        var playersFolderChannel = Path.Combine(BasePath, "extern", "Archipelago", "Players", channelId, "yaml");
-        var message = string.Empty;
-
-        if (!string.IsNullOrEmpty(fileSelected))
-        {
-            var deletedfilePath = Path.Combine(playersFolderChannel, fileSelected);
-
-            if (File.Exists(deletedfilePath))
-            {
-                try
-                {
-                    File.Delete(deletedfilePath);
-                    message += string.Format(Resource.YamlFileDeleted, fileSelected);
-                }
-                catch (Exception ex)
-                {
-                    message += string.Format(Resource.YamlFileDeletedError, fileSelected, ex.Message);
-                }
-            }
-            else
-            {
-                message += string.Format(Resource.YamlDeleteFileNotExists, fileSelected);
-            }
-        }
-        else
-        {
-            message += Resource.NoFileSelected;
-        }
-
-        return message;
+        _ = (channelId, guildId, fileSelected);
+        return "YAML deletion is disabled: player YAML files are persistent and are never deleted.";
     }
 
     public static async Task<string> BackupYamls(SocketSlashCommand command, string channelId)
@@ -317,5 +263,72 @@ public class YamlClass : Declare
             .Where(name => !string.IsNullOrWhiteSpace(name))
             .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
             .ToList()!;
+    }
+
+    public static int CopyYamlFilesToChannel(string sourceChannelId, string targetChannelId)
+    {
+        var sourceDir = Path.Combine(BasePath, "extern", "Archipelago", "Players", sourceChannelId, "yaml");
+        if (!Directory.Exists(sourceDir))
+        {
+            return 0;
+        }
+
+        var targetDir = Path.Combine(BasePath, "extern", "Archipelago", "Players", targetChannelId, "yaml");
+        Directory.CreateDirectory(targetDir);
+
+        var copied = 0;
+        foreach (var file in Directory.GetFiles(sourceDir, "*.yaml", SearchOption.TopDirectoryOnly))
+        {
+            var fileName = Path.GetFileName(file);
+            if (string.IsNullOrWhiteSpace(fileName))
+            {
+                continue;
+            }
+
+            var destination = Path.Combine(targetDir, fileName);
+            File.Copy(file, destination, overwrite: true);
+            copied++;
+        }
+
+        return copied;
+    }
+
+    private static async Task<string> ExtractAliasFromYamlAsync(string filePath, string fallbackFileName)
+    {
+        try
+        {
+            var lines = await File.ReadAllLinesAsync(filePath);
+            foreach (var raw in lines)
+            {
+                if (string.IsNullOrWhiteSpace(raw))
+                {
+                    continue;
+                }
+
+                var line = raw.Trim();
+                if (line.StartsWith("#"))
+                {
+                    continue;
+                }
+
+                var match = Regex.Match(line, "^name\\s*:\\s*(.+)$", RegexOptions.IgnoreCase);
+                if (!match.Success)
+                {
+                    continue;
+                }
+
+                var value = match.Groups[1].Value.Trim().Trim('"', '\'', ' ');
+                if (!string.IsNullOrWhiteSpace(value))
+                {
+                    return value;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Could not extract YAML alias from {filePath}: {ex.Message}");
+        }
+
+        return Path.GetFileNameWithoutExtension(fallbackFileName) ?? string.Empty;
     }
 }

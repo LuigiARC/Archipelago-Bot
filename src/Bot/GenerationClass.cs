@@ -10,6 +10,47 @@ public class GenerationClass : Declare
 {
     public record GenerationResult(string Message, string? ZipPath);
 
+    public static IReadOnlyList<string> GetGeneratedArchiveNames(string channelId)
+    {
+        var outputFolder = Path.Combine(OutputPath, channelId);
+
+        if (!Directory.Exists(outputFolder))
+        {
+            return Array.Empty<string>();
+        }
+
+        return Directory.EnumerateFiles(outputFolder, "*.zip", SearchOption.TopDirectoryOnly)
+            .OrderByDescending(File.GetLastWriteTimeUtc)
+            .Select(Path.GetFileName)
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .ToList()!;
+    }
+
+    public static string? GetGeneratedArchivePath(string channelId, string archiveName)
+    {
+        if (string.IsNullOrWhiteSpace(archiveName))
+        {
+            return null;
+        }
+
+        var outputFolder = Path.Combine(OutputPath, channelId);
+        var archivePath = Path.GetFullPath(Path.Combine(outputFolder, archiveName));
+        var normalizedOutputFolder = Path.GetFullPath(outputFolder) + Path.DirectorySeparatorChar;
+
+        if (!archivePath.StartsWith(normalizedOutputFolder, StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        return File.Exists(archivePath) ? archivePath : null;
+    }
+
+    public static string? GetLatestGeneratedArchivePath(string channelId)
+    {
+        var latestArchive = GetGeneratedArchiveNames(channelId).FirstOrDefault();
+        return latestArchive is null ? null : GetGeneratedArchivePath(channelId, latestArchive);
+    }
+
     private static string GetLauncherPath()
     {
         var launcher = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
@@ -91,11 +132,18 @@ public class GenerationClass : Declare
                 return string.Format(Resource.GenerationOutputFolderNotExists, outputFolder);
             }
 
-            var zipFile = Directory.GetFiles(outputFolder, "*.zip", SearchOption.TopDirectoryOnly).FirstOrDefault();
+            var zipFile = Directory.GetFiles(outputFolder, "*.zip", SearchOption.TopDirectoryOnly)
+                .OrderByDescending(File.GetLastWriteTimeUtc)
+                .FirstOrDefault();
             if (zipFile != null)
             {
+                var archiveName = GetArchiveNameFromCommandChannel(command);
+                if (!string.IsNullOrWhiteSpace(archiveName))
+                {
+                    zipFile = RenameGeneratedZip(zipFile, archiveName);
+                }
+
                 var zipFileName = Path.GetFileName(zipFile);
-                var zipFilePath = Path.GetFullPath(zipFile);
 
                 await command.FollowupWithFileAsync(zipFile, zipFileName);
             }
@@ -171,7 +219,9 @@ public class GenerationClass : Declare
                 return new GenerationResult(string.Format(Resource.GenerationOutputFolderNotExists, outputFolder), null);
             }
 
-            var zipFile = Directory.GetFiles(outputFolder, "*.zip", SearchOption.TopDirectoryOnly).FirstOrDefault();
+            var zipFile = Directory.GetFiles(outputFolder, "*.zip", SearchOption.TopDirectoryOnly)
+                .OrderByDescending(File.GetLastWriteTimeUtc)
+                .FirstOrDefault();
             if (zipFile != null)
             {
                 return new GenerationResult(string.Empty, zipFile);
@@ -196,7 +246,6 @@ public class GenerationClass : Declare
         var filePath = Path.Combine(playersFolder, attachment.Filename);
 
         if (Directory.Exists(playersFolder)) Directory.Delete(playersFolder, true);
-        if (Directory.Exists(outputFolder)) Directory.Delete(outputFolder, true);
 
         Directory.CreateDirectory(playersFolder);
 
@@ -253,7 +302,6 @@ public class GenerationClass : Declare
         var filePath = Path.Combine(playersFolder, Path.GetFileName(fileName));
 
         if (Directory.Exists(playersFolder)) Directory.Delete(playersFolder, true);
-        if (Directory.Exists(outputFolder)) Directory.Delete(outputFolder, true);
 
         Directory.CreateDirectory(playersFolder);
 
@@ -332,9 +380,6 @@ public class GenerationClass : Declare
 
         try
         {
-            if (Directory.Exists(outputFolder))
-                Directory.Delete(outputFolder, true);
-
             Directory.CreateDirectory(playersFolder);
             Directory.CreateDirectory(outputFolder);
 
@@ -364,6 +409,65 @@ public class GenerationClass : Declare
             return string.Format(Resource.GenerationError, ex.Message);
         }
     }
+
+    private static string? GetArchiveNameFromCommandChannel(SocketSlashCommand command)
+    {
+        var name = command.Channel switch
+        {
+            SocketThreadChannel thread => thread.Name,
+            SocketTextChannel text => text.Name,
+            _ => string.Empty
+        };
+
+        return string.IsNullOrWhiteSpace(name) ? null : name;
+    }
+
+    private static string RenameGeneratedZip(string zipPath, string desiredName)
+    {
+        var sanitizedBaseName = SanitizeArchiveName(desiredName);
+        if (string.IsNullOrWhiteSpace(sanitizedBaseName))
+        {
+            return zipPath;
+        }
+
+        var directory = Path.GetDirectoryName(zipPath);
+        if (string.IsNullOrWhiteSpace(directory))
+        {
+            return zipPath;
+        }
+
+        var targetPath = Path.Combine(directory, sanitizedBaseName + ".zip");
+        if (string.Equals(Path.GetFullPath(zipPath), Path.GetFullPath(targetPath), StringComparison.OrdinalIgnoreCase))
+        {
+            return zipPath;
+        }
+
+        if (File.Exists(targetPath))
+        {
+            var suffix = DateTime.UtcNow.ToString("yyyyMMdd_HHmmss");
+            targetPath = Path.Combine(directory, $"{sanitizedBaseName}_{suffix}.zip");
+        }
+
+        File.Move(zipPath, targetPath, overwrite: false);
+        return targetPath;
+    }
+
+    private static string SanitizeArchiveName(string archiveName)
+    {
+        var raw = Path.GetFileNameWithoutExtension(archiveName ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return string.Empty;
+        }
+
+        var invalidChars = Path.GetInvalidFileNameChars();
+        var chars = raw
+            .Select(c => invalidChars.Contains(c) ? '_' : c)
+            .ToArray();
+
+        var cleaned = new string(chars).Trim().Trim('.');
+        return cleaned.Length > 120 ? cleaned[..120].Trim() : cleaned;
+    }
     public static async Task<GenerationResult> GenerateAsyncForWeb(string channelId)
     {
         var playersFolder = Path.Combine(PlayersPath, channelId, "yaml");
@@ -371,9 +475,6 @@ public class GenerationClass : Declare
 
         try
         {
-            if (Directory.Exists(outputFolder))
-                Directory.Delete(outputFolder, true);
-
             Directory.CreateDirectory(playersFolder);
             Directory.CreateDirectory(outputFolder);
 

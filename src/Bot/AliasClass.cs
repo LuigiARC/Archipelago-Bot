@@ -37,14 +37,6 @@ public class AliasClass
         }
 
         var message = string.Format(Resource.AliasAdded, alias, userId);
-        if (Declare.EnableWebPortal)
-        {
-            var portalUrl = await WebPortalPages.EnsureUserPageAsync(guildId, channelId, userId);
-            if (!string.IsNullOrWhiteSpace(portalUrl))
-            {
-                message = $"{message}\n{string.Format(Resource.WebPortalLink, portalUrl)}";
-            }
-        }
 
         return message;
     }

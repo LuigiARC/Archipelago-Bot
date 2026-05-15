@@ -31,65 +31,7 @@ public static class SlashCommandDefinitions
                 .WithDescription(Resource.SCDeleteAliasDescription)
                 .AddOption(AliasOption("added-alias")),
 
-            new SlashCommandBuilder()
-                .WithName("update-frequency-check")
-                .WithDescription(Resource.CheckFrequency)
-                .AddOption(new SlashCommandOptionBuilder()
-                    .WithName(Resource.CheckFrequency)
-                    .WithDescription(Resource.CheckFrequencyDesc)
-                    .WithType(ApplicationCommandOptionType.String)
-                    .WithRequired(true)
-                    .AddChoice($"{Resource.Every} 5 minutes", "5m")
-                    .AddChoice($"{Resource.Every} 15 minutes", "15m")
-                    .AddChoice($"{Resource.Every} 30 minutes", "30m")
-                    .AddChoice($"{Resource.Every} {Resource.Hour}", "1h")
-                    .AddChoice($"{Resource.Every} 6 {Resource.Hour}", "6h")
-                    .AddChoice($"{Resource.Every} 12 {Resource.Hour}", "12h")
-                    .AddChoice($"{Resource.Every} 18 {Resource.Hour}", "18h")
-                    .AddChoice($"{Resource.EveryDay}", "1d")),
-
-            new SlashCommandBuilder()
-                .WithName("add-url")
-                .WithDescription(Resource.SCAddUrlDescription)
-                .AddOption("url", ApplicationCommandOptionType.String, Resource.SCUrlToTrack, isRequired: true)
-                .AddOption(Resource.SCThreadName, ApplicationCommandOptionType.String, Resource.SCThreadNameDescription, isRequired: true)
-                .AddOption(new SlashCommandOptionBuilder()
-                    .WithName(Resource.SCThreadType)
-                    .WithDescription(Resource.SCThreadTypeDescription)
-                    .WithType(ApplicationCommandOptionType.String)
-                    .WithRequired(true)
-                    .AddChoice(Resource.SCThreadPublic, "Public")
-                    .AddChoice(Resource.SCThreadPrivate, "Private"))
-                .AddOption(BooleanOption("auto-add-members", "Auto-add all channel members to the thread (public only)"))
-                .AddOption(BooleanOption(Resource.SCSilentOption, Resource.SCSilentDescription))
-                .AddOption(new SlashCommandOptionBuilder()
-                    .WithName(Resource.CheckFrequency)
-                    .WithDescription(Resource.CheckFrequencyDesc)
-                    .WithType(ApplicationCommandOptionType.String)
-                    .WithRequired(true)
-                    .AddChoice($"{Resource.Every} 5 minutes", "5m")
-                    .AddChoice($"{Resource.Every} 15 minutes", "15m")
-                    .AddChoice($"{Resource.Every} 30 minutes", "30m")
-                    .AddChoice($"{Resource.Every} {Resource.Hour}", "1h")
-                    .AddChoice($"{Resource.Every} 6 {Resource.Hour}", "6h")
-                    .AddChoice($"{Resource.Every} 12 {Resource.Hour}", "12h")
-                    .AddChoice($"{Resource.Every} 18 {Resource.Hour}", "18h")
-                    .AddChoice($"{Resource.EveryDay}", "1d")),
-
-            new SlashCommandBuilder()
-                .WithName("update-silent-option")
-                .WithDescription(Resource.SCUpdateSilentOptionDescription)
-                .AddOption(BooleanOption(Resource.SCSilentOption, Resource.SCSilentDescription)),
-
-            new SlashCommandBuilder().WithName("delete-url").WithDescription(Resource.SCDeleteUrlDescription),
             new SlashCommandBuilder().WithName("status-games-list").WithDescription(Resource.SCStatusGameListDescription),
-
-            new SlashCommandBuilder().WithName("info").WithDescription(Resource.SCInfoDescription),
-
-            new SlashCommandBuilder()
-                .WithName("get-patch")
-                .WithDescription(Resource.SCGetPatchDescription)
-                .AddOption(AliasOption("alias")),
 
              new SlashCommandBuilder()
                 .WithName("recap-all").WithDescription(Resource.SCRecapAllDescription),
@@ -97,34 +39,46 @@ public static class SlashCommandDefinitions
             new SlashCommandBuilder()
                 .WithName("recap")
                 .WithDescription(Resource.SCRecapDescription)
-                .AddOption(AliasOption("added-alias")),
+                .AddOption(UserOption("user", "Discord user linked to a player alias")),
 
             new SlashCommandBuilder()
                 .WithName("recap-and-clean")
                 .WithDescription(Resource.RCRecapAndCleanDescription)
-                .AddOption(AliasOption("added-alias")),
+                .AddOption(UserOption("user", "Discord user linked to a player alias")),
 
             new SlashCommandBuilder()
                 .WithName("clean")
                 .WithDescription(Resource.SCCleanDescription)
-                .AddOption(AliasOption("added-alias")),
+                .AddOption(UserOption("user", "Discord user linked to a player alias")),
 
             new SlashCommandBuilder().WithName("clean-all").WithDescription(Resource.SCCleanAllDescription),
 
             new SlashCommandBuilder()
-                .WithName("hint-from-finder")
-                .WithDescription(Resource.SCGetHintFromFinderDescription)
-                .AddOption(AliasOption("alias")),
+                .WithName("hint")
+                .WithDescription("Run !hint directly on the Archipelago server as a specific slot.")
+                .AddOption(new SlashCommandOptionBuilder()
+                    .WithName("slot-name")
+                    .WithDescription("Slot/player name from the yaml file")
+                    .WithType(ApplicationCommandOptionType.String)
+                    .WithRequired(true))
+                .AddOption(new SlashCommandOptionBuilder()
+                    .WithName("item-name")
+                    .WithDescription("Item name to hint")
+                    .WithType(ApplicationCommandOptionType.String)
+                    .WithRequired(true)),
 
             new SlashCommandBuilder()
-                .WithName("hint-for-receiver")
-                .WithDescription(Resource.SCGetHintForReveiverDescription)
-                .AddOption(AliasOption("alias")),
+                .WithName("status")
+                .WithDescription("Show the current Archipelago world status (unlockables and connections)."),
+
+            new SlashCommandBuilder()
+                .WithName("players")
+                .WithDescription("Show users currently online in the Archipelago room."),
 
             new SlashCommandBuilder()
                 .WithName("list-items")
                 .WithDescription(Resource.SCListItemDescription)
-                .AddOption(AliasOption("alias")),
+                .AddOption(UserOption("user", "Discord user linked to a player alias")),
 
             new SlashCommandBuilder()
                 .WithName("analyze-spoiler-log")
@@ -181,18 +135,6 @@ public static class SlashCommandDefinitions
                 .AddOption(AliasOption("added-alias"))
                 .AddOption(ItemsOption("delete-items")),
 
-            new SlashCommandBuilder()
-                .WithName("ast-user-portal")
-                .WithDescription(Resource.SCPortalLinkDescription),
-
-            new SlashCommandBuilder()
-                .WithName("ast-room-portal")
-                .WithDescription("Afficher la page web des commandes du thread"),
-
-            new SlashCommandBuilder()
-                .WithName("ast-portal")
-                .WithDescription(Resource.SCPortalUrlDescription),
-
         };
 
         if (Declare.IsArchipelagoMode)
@@ -201,6 +143,58 @@ public static class SlashCommandDefinitions
             {
                 new SlashCommandBuilder().WithName("list-yamls").WithDescription(Resource.SCListYamlsDescription),
                 new SlashCommandBuilder().WithName("list-apworld").WithDescription(Resource.SCListApworldDescription),
+
+                new SlashCommandBuilder()
+                    .WithName("create-world")
+                    .WithDescription("Create a dedicated world thread with a clean slate for uploads/generation/hosting.")
+                    .AddOption(new SlashCommandOptionBuilder()
+                        .WithName("world-name")
+                        .WithDescription("Optional world thread name")
+                        .WithType(ApplicationCommandOptionType.String)
+                        .WithRequired(false)),
+
+                new SlashCommandBuilder()
+                    .WithName("host-world")
+                    .WithDescription("(Legacy alias) Start the world linked to this thread."),
+
+                new SlashCommandBuilder()
+                    .WithName("start-world")
+                    .WithDescription("Start the world linked to this thread.")
+                    .AddOption(new SlashCommandOptionBuilder()
+                        .WithName("port")
+                        .WithDescription("Optional Archipelago port override (default is the Archipelago server default port)")
+                        .WithType(ApplicationCommandOptionType.Integer)
+                        .WithRequired(false))
+                    .AddOption(new SlashCommandOptionBuilder()
+                        .WithName("external-domain")
+                        .WithDescription("Optional external domain override")
+                        .WithType(ApplicationCommandOptionType.String)
+                        .WithRequired(false))
+                    .AddOption(new SlashCommandOptionBuilder()
+                        .WithName("enable-server-log")
+                        .WithDescription("Enable server output logging to this thread")
+                        .WithType(ApplicationCommandOptionType.Boolean)
+                        .WithRequired(false)),
+
+                new SlashCommandBuilder()
+                    .WithName("run-server-command")
+                    .WithDescription("Admin only: run a direct command on the live Archipelago server process.")
+                    .AddOption(new SlashCommandOptionBuilder()
+                        .WithName("server-command")
+                        .WithDescription("Raw server console command to execute")
+                        .WithType(ApplicationCommandOptionType.String)
+                        .WithRequired(true)),
+
+                new SlashCommandBuilder()
+                    .WithName("send-patch")
+                    .WithDescription("Send a generated patch file from the world zip by slot name.")
+                    .AddOption(new SlashCommandOptionBuilder()
+                        .WithName("slot-name")
+                        .WithDescription("Slot/player name from the generated patch filename")
+                        .WithType(ApplicationCommandOptionType.String)
+                        .WithRequired(true)),
+
+                new SlashCommandBuilder().WithName("stop-host-world").WithDescription("Stop the local Archipelago server started by the bot."),
 
                 new SlashCommandBuilder().WithName("backup-yamls").WithDescription(Resource.SCBackupYamlDescription),
                 new SlashCommandBuilder().WithName("backup-apworld").WithDescription(Resource.SCBackupApworldDescription),
@@ -234,7 +228,12 @@ public static class SlashCommandDefinitions
                         .WithName("file")
                         .WithDescription(Resource.SCSendYamlChooseDescription)
                         .WithType(ApplicationCommandOptionType.Attachment)
-                        .WithRequired(true)),
+                        .WithRequired(true))
+                    .AddOption(new SlashCommandOptionBuilder()
+                        .WithName("user")
+                        .WithDescription("Discord user linked to this YAML player config")
+                        .WithType(ApplicationCommandOptionType.User)
+                        .WithRequired(false)),
 
                 new SlashCommandBuilder()
                     .WithName("generate-with-zip")
@@ -266,7 +265,7 @@ public static class SlashCommandDefinitions
                             .WithName("skip-prog-balancing")
                             .WithDescription("skip-prog-balancing")
                             .WithType(ApplicationCommandOptionType.Boolean)
-                            .WithRequired(true)),
+                        .WithRequired(true)),
 
                 new SlashCommandBuilder().WithName("test-generate").WithDescription(Resource.SCTestGenerateDescription)
             });
@@ -292,6 +291,15 @@ public static class SlashCommandDefinitions
             .WithName(name)
             .WithDescription(description)
             .WithType(ApplicationCommandOptionType.Boolean)
+            .WithRequired(true);
+    }
+
+    private static SlashCommandOptionBuilder UserOption(string name, string description)
+    {
+        return new SlashCommandOptionBuilder()
+            .WithName(name)
+            .WithDescription(description)
+            .WithType(ApplicationCommandOptionType.User)
             .WithRequired(true);
     }
 

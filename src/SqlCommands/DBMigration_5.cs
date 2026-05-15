@@ -335,4 +335,44 @@ ALTER TABLE ReceiverAliasesTable_new RENAME TO ReceiverAliasesTable;
 
         await PostMigrationMaintenanceAsync();
     }
+
+    public static async Task Migrate_5_0_6(CancellationToken ct = default)
+    {
+        Console.WriteLine("Migrating to DB version 5.0.6: Adding EnableServerLog column to WorldThreadsTable.");
+
+        await using var conn = await Db.OpenWriteAsync();
+
+        using (var pragma = conn.CreateCommand())
+        {
+            pragma.CommandText = @"
+                PRAGMA journal_mode=WAL;
+                PRAGMA synchronous=NORMAL;
+                PRAGMA foreign_keys=ON;
+                PRAGMA temp_store=MEMORY;
+            ";
+            pragma.ExecuteNonQuery();
+        }
+
+        using (var transaction = conn.BeginTransaction())
+        using (var cmd = conn.CreateCommand())
+        {
+            cmd.Transaction = transaction;
+
+            cmd.CommandText = @"
+                ALTER TABLE WorldThreadsTable
+                ADD COLUMN EnableServerLog INTEGER DEFAULT 0;
+            ";
+            cmd.ExecuteNonQuery();
+
+            transaction.Commit();
+        }
+
+        using (var pragmaOn = conn.CreateCommand())
+        {
+            pragmaOn.CommandText = "PRAGMA foreign_keys = ON;";
+            pragmaOn.ExecuteNonQuery();
+        }
+
+        await PostMigrationMaintenanceAsync();
+    }
 }

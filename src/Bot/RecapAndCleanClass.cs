@@ -9,6 +9,7 @@ public class RecapAndCleanClass
     string? alias,
     string channelId,
     string guildId,
+    string? targetUserId,
     bool isAliasRequired,
     bool deleteAfter,
     bool includeAllAliases,
@@ -16,7 +17,7 @@ public class RecapAndCleanClass
     Func<SocketSlashCommand, Dictionary<string, List<(string Item, long? Flag)>>, string, string, string?, string>? buildMessage)
     {
         var message = string.Empty;
-        var userId = command.User.Id.ToString();
+        var userId = targetUserId ?? command.User.Id.ToString();
 
         if (!await DatabaseCommands.CheckIfChannelExistsAsync(guildId, channelId, "RecapListTable"))
             return Resource.RACNoUrlOrAlias;
@@ -71,28 +72,28 @@ public class RecapAndCleanClass
         return message;
     }
 
-    public static async Task<string> Clean(SocketSlashCommand command, string? alias, string channelId, string guildId)
+    public static async Task<string> Clean(SocketSlashCommand command, string? alias, string channelId, string guildId, string? targetUserId = null)
     {
-        return await HandleRecapOrClean(command, alias, channelId, guildId, isAliasRequired: true, deleteAfter: true, includeAllAliases: false, returnRecap: false, buildMessage: null);
+        return await HandleRecapOrClean(command, alias, channelId, guildId, targetUserId, isAliasRequired: true, deleteAfter: true, includeAllAliases: false, returnRecap: false, buildMessage: null);
     }
 
-    public static async Task<string> CleanAll(SocketSlashCommand command, string? alias, string channelId, string guildId)
+    public static async Task<string> CleanAll(SocketSlashCommand command, string? alias, string channelId, string guildId, string? targetUserId = null)
     {
-        return await HandleRecapOrClean(command, alias, channelId, guildId, isAliasRequired: false, deleteAfter: true, includeAllAliases: true, returnRecap: false, buildMessage: null);
+        return await HandleRecapOrClean(command, alias, channelId, guildId, targetUserId, isAliasRequired: false, deleteAfter: true, includeAllAliases: true, returnRecap: false, buildMessage: null);
     }
 
-    public static async Task<string> Recap(SocketSlashCommand command, string? alias, string channelId, string guildId)
+    public static async Task<string> Recap(SocketSlashCommand command, string? alias, string channelId, string guildId, string? targetUserId = null)
     {
-        return await HandleRecapOrClean(command, alias, channelId, guildId, isAliasRequired: true, deleteAfter: false, includeAllAliases: false, returnRecap: true, buildMessage: BuildRecapMessage);
+        return await HandleRecapOrClean(command, alias, channelId, guildId, targetUserId, isAliasRequired: true, deleteAfter: false, includeAllAliases: false, returnRecap: true, buildMessage: BuildRecapMessage);
     }
 
-    public static async Task<string> RecapAll(SocketSlashCommand command, string channelId, string guildId)
+    public static async Task<string> RecapAll(SocketSlashCommand command, string channelId, string guildId, string? targetUserId = null)
     {
-        return await HandleRecapOrClean(command, alias: null, channelId, guildId, isAliasRequired: false, deleteAfter: false, includeAllAliases: true, returnRecap: true, buildMessage: BuildRecapMessage);
+        return await HandleRecapOrClean(command, alias: null, channelId, guildId, targetUserId, isAliasRequired: false, deleteAfter: false, includeAllAliases: true, returnRecap: true, buildMessage: BuildRecapMessage);
     }
-    public static async Task<string> RecapAndClean(SocketSlashCommand command, string? alias, string channelId, string guildId)
+    public static async Task<string> RecapAndClean(SocketSlashCommand command, string? alias, string channelId, string guildId, string? targetUserId = null)
     {
-        return await HandleRecapOrClean(command, alias, channelId, guildId, isAliasRequired: true, deleteAfter: true, includeAllAliases: false, returnRecap: true, buildMessage: BuildRecapMessage);
+        return await HandleRecapOrClean(command, alias, channelId, guildId, targetUserId, isAliasRequired: true, deleteAfter: true, includeAllAliases: false, returnRecap: true, buildMessage: BuildRecapMessage);
     }
 
     public sealed record RecapItem(string Item, long? Flag);
